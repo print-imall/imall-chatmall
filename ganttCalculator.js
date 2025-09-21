@@ -529,3 +529,827 @@ function clearGanttForm() {
     
     currentGanttData = null;
 }
+
+// ============================================================
+// 🚀 שדרוג מחשבון גנט - הוסף את הקוד הזה לסוף הקובץ הקיים
+// ============================================================
+
+// שמירה על הפונקציות הקיימות
+const originalFunctions = {
+    calculateGanttBudget: typeof calculateGanttBudget !== 'undefined' ? calculateGanttBudget : null,
+    updateGanttMallOptions: typeof updateGanttMallOptions !== 'undefined' ? updateGanttMallOptions : null,
+    clearGanttForm: typeof clearGanttForm !== 'undefined' ? clearGanttForm : null
+};
+
+// מנהל נתונים מותאם לקובץ הקיים
+class EnhancedGanttManager {
+    constructor() {
+        this.isEnhanced = false;
+        this.originalData = null;
+        
+        this.init();
+    }
+    
+    init() {
+        console.log('🔧 מאתחל שדרוגים למחשבון גנט...');
+        
+        // בדיקה אם יש נתונים קיימים
+        if (typeof productsData !== 'undefined' && Array.isArray(productsData)) {
+            this.originalData = productsData;
+            this.isEnhanced = true;
+            console.log('✅ נתונים קיימים זוהו:', productsData.length, 'פריטים');
+        }
+        
+        this.enhanceExistingFunctions();
+    }
+    
+    // שיפור הפונקציות הקיימות
+    enhanceExistingFunctions() {
+        // שדרוג פונקציית החישוב
+        if (originalFunctions.calculateGanttBudget) {
+            window.calculateGanttBudgetOriginal = originalFunctions.calculateGanttBudget;
+            window.calculateGanttBudget = this.enhancedCalculate.bind(this);
+        }
+        
+        // הוספת פונקציות חדשות
+        window.ganttExportAdvanced = this.advancedExport.bind(this);
+        window.ganttSaveAdvanced = this.advancedSave.bind(this);
+        window.ganttShowStats = this.showStatistics.bind(this);
+        window.ganttOptimizeBudget = this.optimizeBudget.bind(this);
+    }
+    
+    // חישוב משופר עם שמירה על התאימות
+    enhancedCalculate() {
+        console.log('🎯 מבצע חישוב משופר...');
+        
+        const type = document.getElementById('ganttType')?.value || 'all';
+        const budget = Number(document.getElementById('ganttBudget')?.value || 0);
+        
+        // בדיקות בסיסיות
+        if (ganttSelectedMalls.size === 0) {
+            this.showMessage('אנא בחר לפחות מתחם אחד', 'warning');
+            return;
+        }
+        
+        if (!this.originalData || this.originalData.length === 0) {
+            // נפילה לפונקציה המקורית
+            if (originalFunctions.calculateGanttBudget) {
+                originalFunctions.calculateGanttBudget();
+                return;
+            }
+        }
+        
+        // חישוב משופר
+        const results = this.calculateEnhanced(type, budget);
+        this.displayEnhancedResults(results);
+    }
+    
+    calculateEnhanced(type, budget) {
+        const selectedMalls = Array.from(ganttSelectedMalls);
+        let mallStats = {};
+        
+        // עיבוד נתונים
+        this.originalData.forEach(item => {
+            const mall = item['מתחם'];
+            if (!mall || !selectedMalls.includes(mall.trim())) return;
+            
+            // סינון לפי קמפיין
+            const campaign = String(item['קמפיין'] || '').trim();
+            if (type !== 'all') {
+                if (type === 'פרינט' && campaign !== 'פרינט') return;
+                if (type === 'דיגיטלי' && campaign !== 'דיגטלי') return;
+            }
+            
+            const mallKey = mall.trim();
+            if (!mallStats[mallKey]) {
+                mallStats[mallKey] = {
+                    cost: 0,
+                    count: 0,
+                    products: [],
+                    platforms: new Set(),
+                    visitors: 0
+                };
+            }
+            
+            const price = Number(item['מחיר מכירה']) || 0;
+            const visitors = Number(item['מבקרים']) || 0;
+            
+            mallStats[mallKey].cost += price;
+            mallStats[mallKey].count += 1;
+            mallStats[mallKey].products.push(item);
+            mallStats[mallKey].visitors += visitors;
+            
+            if (item['פלטפורמה']) {
+                mallStats[mallKey].platforms.add(item['פלטפורמה']);
+            }
+        });
+        
+        // המרה למערך וסינון לפי תקציב
+        let mallsArray = Object.keys(mallStats).map(mall => ({
+            name: mall,
+            cost: mallStats[mall].cost,
+            count: mallStats[mall].count,
+            products: mallStats[mall].products,
+            platforms: Array.from(mallStats[mall].platforms),
+            avgVisitors: mallStats[mall].count > 0 ? Math.round(mallStats[mall].visitors / mallStats[mall].count) : 0
+        }));
+        
+        // סינון לפי תקציב
+        if (budget && budget > 0) {
+            mallsArray.sort((a, b) => a.cost - b.cost);
+            let currentTotal = 0;
+            mallsArray = mallsArray.filter(mall => {
+                if (currentTotal + mall.cost <= budget) {
+                    currentTotal += mall.cost;
+                    return true;
+                }
+                return false;
+            });
+        }
+        
+        return {
+            type,
+            budget,
+            malls: mallsArray,
+            totalCost: mallsArray.reduce((sum, mall) => sum + mall.cost, 0),
+            totalProducts: mallsArray.reduce((sum, mall) => sum + mall.count, 0),
+            generatedAt: new Date()
+        };
+    }
+    
+    displayEnhancedResults(results) {
+        const { malls, type, budget, totalCost, totalProducts } = results;
+        
+        // שמירת נתונים לתאימות
+        currentGanttData = {
+            finalMalls: malls.map(m => m.name),
+            mallSums: Object.fromEntries(malls.map(m => [m.name, m.cost])),
+            mallCounts: Object.fromEntries(malls.map(m => [m.name, m.count])),
+            mallProducts: Object.fromEntries(malls.map(m => [m.name, m.products])),
+            type,
+            budget,
+            selectedMalls: Array.from(ganttSelectedMalls),
+            generatedAt: new Date().toISOString()
+        };
+        
+        let html = `
+            <div style="background:white; padding:25px; border-radius:16px; box-shadow:0 8px 25px rgba(0,0,0,0.1);" id="ganttReportContent">
+                <!-- כותרת משופרת -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #e9ecef;">
+                    <div>
+                        <h4 style="margin:0; color:#007bff; font-size: 22px;">🎯 תוצאות גנט משופרות</h4>
+                        <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 14px;">נוצר ב-${new Date().toLocaleString('he-IL')}</p>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button onclick="ganttSaveAdvanced()" style="background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">💾 שמור מתקדם</button>
+                        <button onclick="ganttExportAdvanced('pdf')" style="background: linear-gradient(135deg, #dc3545, #e83e8c); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">📄 PDF</button>
+                        <button onclick="ganttShowStats()" style="background: linear-gradient(135deg, #17a2b8, #6f42c1); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">📊 סטטיסטיקות</button>
+                    </div>
+                </div>
+                
+                <!-- כרטיסי סיכום -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                    <div style="background: linear-gradient(135deg, #e3f2fd, #bbdefb); padding: 20px; border-radius: 12px; text-align: center; border-left: 4px solid #2196f3;">
+                        <div style="font-size: 28px; font-weight: bold; color: #1976d2;">${malls.length}</div>
+                        <div style="color: #1565c0; font-size: 14px; font-weight: 500;">מתחמים נבחרו</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #e8f5e8, #c8e6c9); padding: 20px; border-radius: 12px; text-align: center; border-left: 4px solid #4caf50;">
+                        <div style="font-size: 28px; font-weight: bold; color: #2e7d32;">${totalProducts}</div>
+                        <div style="color: #1b5e20; font-size: 14px; font-weight: 500;">סה"כ פלטפורמות</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #fff3e0, #ffcc02); padding: 20px; border-radius: 12px; text-align: center; border-left: 4px solid #ff9800;">
+                        <div style="font-size: 28px; font-weight: bold; color: #f57c00;">₪${totalCost.toLocaleString()}</div>
+                        <div style="color: #ef6c00; font-size: 14px; font-weight: 500;">השקעה כוללת</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #f3e5f5, #e1bee7); padding: 20px; border-radius: 12px; text-align: center; border-left: 4px solid #9c27b0;">
+                        <div style="font-size: 18px; font-weight: bold; color: #7b1fa2;">${type === 'all' ? 'משולב' : type}</div>
+                        <div style="color: #6a1b9a; font-size: 14px; font-weight: 500;">סוג קמפיין</div>
+                    </div>
+                </div>
+        `;
+        
+        // טבלת תוצאות מפורטת
+        html += this.generateDetailedTable(malls, totalCost);
+        
+        // סטטוס תקציב אם הוגדר
+        if (budget && budget > 0) {
+            html += this.generateBudgetStatus(budget, totalCost);
+        }
+        
+        // גרף התפלגות פשוט
+        html += this.generateSimpleChart(malls, totalCost);
+        
+        html += '</div>';
+        
+        document.getElementById('ganttResults').innerHTML = html;
+        
+        // אפקט אנימציה
+        setTimeout(() => {
+            const content = document.getElementById('ganttReportContent');
+            if (content) {
+                content.style.opacity = '0';
+                content.style.transform = 'translateY(20px)';
+                content.style.transition = 'all 0.6s ease';
+                
+                setTimeout(() => {
+                    content.style.opacity = '1';
+                    content.style.transform = 'translateY(0)';
+                }, 50);
+            }
+        }, 100);
+    }
+    
+    generateDetailedTable(malls, totalCost) {
+        let html = `
+            <table style="width:100%; border-collapse:collapse; margin-bottom:25px; border-radius:12px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.08);">
+                <thead>
+                    <tr style="background: linear-gradient(135deg, #007bff, #0056b3); color:white;">
+                        <th style="padding:16px; text-align:right; font-weight:600; font-size:14px;">מתחם</th>
+                        <th style="padding:16px; text-align:center; font-weight:600; font-size:14px;">פלטפורמות</th>
+                        <th style="padding:16px; text-align:center; font-weight:600; font-size:14px;">סוגי מדיה</th>
+                        <th style="padding:16px; text-align:center; font-weight:600; font-size:14px;">ממוצע מבקרים</th>
+                        <th style="padding:16px; text-align:center; font-weight:600; font-size:14px;">אחוז מתקציב</th>
+                        <th style="padding:16px; text-align:center; font-weight:600; font-size:14px;">עלות</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        malls.sort((a, b) => b.cost - a.cost).forEach((mall, index) => {
+            const bgColor = index % 2 === 0 ? '#ffffff' : '#f8f9fa';
+            const percentage = totalCost > 0 ? ((mall.cost / totalCost) * 100).toFixed(1) : '0.0';
+            const platformsText = mall.platforms.length > 2 ? 
+                mall.platforms.slice(0, 2).join(', ') + `... (+${mall.platforms.length - 2})` :
+                mall.platforms.join(', ') || 'לא זמין';
+            
+            html += `
+                <tr style="background:${bgColor}; transition:all 0.3s ease;" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${bgColor}'">
+                    <td style="padding:14px; font-weight:600; color:#007bff; border-bottom:1px solid #e9ecef;">${mall.name}</td>
+                    <td style="padding:14px; text-align:center; font-weight:500; border-bottom:1px solid #e9ecef;">${mall.count}</td>
+                    <td style="padding:14px; text-align:center; font-size:12px; border-bottom:1px solid #e9ecef;" title="${mall.platforms.join(', ')}">${platformsText}</td>
+                    <td style="padding:14px; text-align:center; font-weight:500; border-bottom:1px solid #e9ecef;">${mall.avgVisitors.toLocaleString()}</td>
+                    <td style="padding:14px; text-align:center; font-weight:600; color:#28a745; border-bottom:1px solid #e9ecef;">${percentage}%</td>
+                    <td style="padding:14px; text-align:center; font-weight:700; color:#007bff; border-bottom:1px solid #e9ecef;">₪${mall.cost.toLocaleString()}</td>
+                </tr>
+            `;
+        });
+        
+        const totalProducts = malls.reduce((sum, mall) => sum + mall.count, 0);
+        const avgVisitors = malls.length > 0 ? Math.round(malls.reduce((sum, mall) => sum + mall.avgVisitors, 0) / malls.length) : 0;
+        
+        html += `
+                <tr style="background: linear-gradient(135deg, #28a745, #20c997); color:white; font-weight:bold;">
+                    <td style="padding:16px; font-size:16px;"><strong>סה"כ</strong></td>
+                    <td style="text-align:center; padding:16px; font-size:16px;"><strong>${totalProducts}</strong></td>
+                    <td style="text-align:center; padding:16px; font-size:16px;"><strong>-</strong></td>
+                    <td style="text-align:center; padding:16px; font-size:16px;"><strong>${avgVisitors.toLocaleString()}</strong></td>
+                    <td style="text-align:center; padding:16px; font-size:16px;"><strong>100%</strong></td>
+                    <td style="text-align:center; padding:16px; font-size:16px;"><strong>₪${totalCost.toLocaleString()}</strong></td>
+                </tr>
+                </tbody>
+            </table>
+        `;
+        
+        return html;
+    }
+    
+    generateBudgetStatus(budget, totalCost) {
+        const remaining = budget - totalCost;
+        const usedPercentage = Math.round((totalCost / budget) * 100);
+        const statusColor = remaining >= 0 ? '#d4edda' : '#f8d7da';
+        const statusBorder = remaining >= 0 ? '#28a745' : '#dc3545';
+        const statusIcon = remaining >= 0 ? '✅' : '⚠️';
+        
+        return `
+            <div style="margin:25px 0; padding:25px; background:${statusColor}; border-left:6px solid ${statusBorder}; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+                <h5 style="margin:0 0 20px 0; color:${statusBorder}; display:flex; align-items:center; gap:12px; font-size:18px;">
+                    <span style="font-size:24px;">${statusIcon}</span>
+                    <span>סטטוס תקציב מתקדם</span>
+                </h5>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-bottom:20px;">
+                    <div style="background:rgba(255,255,255,0.8); padding:15px; border-radius:8px; text-align:center;">
+                        <div style="font-size:14px; color:#6c757d; margin-bottom:5px;">תקציב מאושר</div>
+                        <div style="font-size:20px; font-weight:bold; color:${statusBorder};">₪${budget.toLocaleString()}</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.8); padding:15px; border-radius:8px; text-align:center;">
+                        <div style="font-size:14px; color:#6c757d; margin-bottom:5px;">בשימוש</div>
+                        <div style="font-size:20px; font-weight:bold; color:${statusBorder};">₪${totalCost.toLocaleString()}</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.8); padding:15px; border-radius:8px; text-align:center;">
+                        <div style="font-size:14px; color:#6c757d; margin-bottom:5px;">${remaining >= 0 ? 'יתרה' : 'חריגה'}</div>
+                        <div style="font-size:20px; font-weight:bold; color:${statusBorder};">₪${Math.abs(remaining).toLocaleString()}</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.8); padding:15px; border-radius:8px; text-align:center;">
+                        <div style="font-size:14px; color:#6c757d; margin-bottom:5px;">אחוז ניצול</div>
+                        <div style="font-size:20px; font-weight:bold; color:${statusBorder};">${usedPercentage}%</div>
+                    </div>
+                </div>
+                
+                <!-- פס התקדמות משופר -->
+                <div style="background:rgba(255,255,255,0.6); border-radius:20px; height:24px; overflow:hidden; position:relative;">
+                    <div style="background:linear-gradient(90deg, ${statusBorder}, ${statusBorder}dd); height:100%; width:${Math.min(usedPercentage, 100)}%; transition:width 2s ease; border-radius:20px; display:flex; align-items:center; justify-content:center;">
+                        <span style="color:white; font-size:12px; font-weight:bold; text-shadow:1px 1px 2px rgba(0,0,0,0.3);">${usedPercentage}%</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    generateSimpleChart(malls, totalCost) {
+        const topMalls = malls.sort((a, b) => b.cost - a.cost).slice(0, 5);
+        const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d'];
+        
+        let html = `
+            <div style="margin:25px 0;">
+                <h5 style="color:#007bff; margin-bottom:20px; font-size:18px; display:flex; align-items:center; gap:10px;">
+                    <span>📊</span>
+                    <span>התפלגות תקציב - ${topMalls.length} המתחמים המובילים</span>
+                </h5>
+                <div style="background:linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius:16px; padding:25px; border:1px solid #dee2e6;">
+        `;
+        
+        topMalls.forEach((mall, index) => {
+            const percentage = totalCost > 0 ? ((mall.cost / totalCost) * 100) : 0;
+            const width = Math.max(percentage, 3);
+            
+            html += `
+                <div style="margin-bottom:16px; display:flex; align-items:center; gap:20px;">
+                    <div style="min-width:140px; font-size:13px; font-weight:600; color:#495057;">${mall.name}</div>
+                    <div style="flex:1; background:#ffffff; border-radius:12px; height:32px; position:relative; overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="background:linear-gradient(90deg, ${colors[index]}, ${colors[index]}cc); height:100%; width:${width}%; border-radius:12px; transition:width 2s ease; display:flex; align-items:center; justify-content:flex-end; padding-right:12px; position:relative;">
+                            <span style="color:white; font-size:11px; font-weight:bold; text-shadow:1px 1px 2px rgba(0,0,0,0.4);">
+                                ${percentage.toFixed(1)}%
+                            </span>
+                        </div>
+                    </div>
+                    <div style="min-width:90px; text-align:left; font-size:13px; font-weight:700; color:${colors[index]};">
+                        ₪${mall.cost.toLocaleString()}
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div></div>';
+        return html;
+    }
+    
+    // שמירה מתקדמת
+    advancedSave() {
+        if (!currentGanttData) {
+            this.showMessage('אין תוכנית לשמירה', 'error');
+            return;
+        }
+        
+        const timestamp = new Date().toISOString().split('T')[0];
+        const defaultName = `גנט_${currentGanttData.type}_${timestamp}`;
+        const planName = prompt('🏷️ הכנס שם לתוכנית:', defaultName);
+        
+        if (!planName) return;
+        
+        const enhancedPlan = {
+            id: Date.now(),
+            name: planName.trim(),
+            data: {
+                ...currentGanttData,
+                metadata: {
+                    version: '2.0',
+                    enhanced: true,
+                    totalMalls: currentGanttData.finalMalls ? currentGanttData.finalMalls.length : 0,
+                    totalCost: Object.values(currentGanttData.mallSums || {}).reduce((sum, cost) => sum + cost, 0),
+                    totalProducts: Object.values(currentGanttData.mallCounts || {}).reduce((sum, count) => sum + count, 0)
+                }
+            },
+            savedAt: new Date().toISOString()
+        };
+        
+        savedGanttPlans.unshift(enhancedPlan);
+        if (savedGanttPlans.length > 50) savedGanttPlans.pop();
+        
+        try {
+            localStorage.setItem('savedGanttPlans', JSON.stringify(savedGanttPlans));
+            this.showMessage(`✅ התוכנית "${planName}" נשמרה בהצלחה!`, 'success');
+        } catch (e) {
+            this.showMessage('⚠️ שגיאה בשמירה', 'error');
+        }
+    }
+    
+    // יצוא מתקדם
+    advancedExport(format = 'pdf') {
+        if (!currentGanttData) {
+            this.showMessage('אין נתונים לייצוא', 'error');
+            return;
+        }
+        
+        if (format === 'pdf') {
+            // השתמש בפונקציה הקיימת עם שיפורים
+            exportGanttToPDF(false);
+        } else if (format === 'excel') {
+            this.exportToExcel();
+        }
+    }
+    
+    // הצגת סטטיסטיקות
+    showStatistics() {
+        if (!this.originalData) {
+            this.showMessage('אין נתונים זמינים', 'error');
+            return;
+        }
+        
+        const stats = this.calculateStatistics();
+        this.displayStatistics(stats);
+    }
+    
+    calculateStatistics() {
+        const malls = new Set();
+        const campaigns = new Set();
+        const platforms = new Set();
+        const prices = [];
+        
+        this.originalData.forEach(item => {
+            if (item['מתחם']) malls.add(item['מתחם']);
+            if (item['קמפיין']) campaigns.add(item['קמפיין']);
+            if (item['פלטפורמה']) platforms.add(item['פלטפורמה']);
+            
+            const price = Number(item['מחיר מכירה']);
+            if (!isNaN(price) && price > 0) {
+                prices.push(price);
+            }
+        });
+        
+        return {
+            totalItems: this.originalData.length,
+            totalMalls: malls.size,
+            totalCampaigns: campaigns.size,
+            totalPlatforms: platforms.size,
+            campaigns: Array.from(campaigns),
+            priceStats: {
+                min: Math.min(...prices),
+                max: Math.max(...prices),
+                avg: Math.round(prices.reduce((sum, price) => sum + price, 0) / prices.length),
+                total: prices.reduce((sum, price) => sum + price, 0)
+            }
+        };
+    }
+    
+    displayStatistics(stats) {
+        const modalHtml = `
+            <div id="statsModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:10000; display:flex; align-items:center; justify-content:center;">
+                <div style="background:white; padding:30px; border-radius:16px; max-width:600px; width:90%; max-height:80%; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+                        <h3 style="margin:0; color:#007bff; font-size:20px;">📊 סטטיסטיקות מערכת</h3>
+                        <button onclick="document.getElementById('statsModal').remove()" style="background:none; border:none; font-size:28px; cursor:pointer; color:#6c757d; padding:0; width:30px; height:30px; display:flex; align-items:center; justify-content:center;">×</button>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:20px; margin-bottom:25px;">
+                        <div style="background:linear-gradient(135deg, #e3f2fd, #bbdefb); padding:20px; border-radius:12px; text-align:center;">
+                            <div style="font-size:28px; font-weight:bold; color:#1976d2;">${stats.totalItems}</div>
+                            <div style="color:#1565c0; font-size:14px;">סה"כ פלטפורמות</div>
+                        </div>
+                        <div style="background:linear-gradient(135deg, #e8f5e8, #c8e6c9); padding:20px; border-radius:12px; text-align:center;">
+                            <div style="font-size:28px; font-weight:bold; color:#2e7d32;">${stats.totalMalls}</div>
+                            <div style="color:#1b5e20; font-size:14px;">מתחמים</div>
+                        </div>
+                        <div style="background:linear-gradient(135deg, #fff3e0, #ffcc02); padding:20px; border-radius:12px; text-align:center;">
+                            <div style="font-size:28px; font-weight:bold; color:#f57c00;">${stats.totalPlatforms}</div>
+                            <div style="color:#ef6c00; font-size:14px;">סוגי פלטפורמות</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background:#f8f9fa; padding:20px; border-radius:12px; margin-bottom:20px;">
+                        <h5 style="color:#007bff; margin-bottom:15px;">💰 סטטיסטיקות מחירים</h5>
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:15px;">
+                            <div style="text-align:center;">
+                                <div style="font-size:18px; font-weight:bold; color:#28a745;">₪${stats.priceStats.min.toLocaleString()}</div>
+                                <div style="font-size:12px; color:#6c757d;">מינימום</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="font-size:18px; font-weight:bold; color:#ffc107;">₪${stats.priceStats.avg.toLocaleString()}</div>
+                                <div style="font-size:12px; color:#6c757d;">ממוצע</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="font-size:18px; font-weight:bold; color:#dc3545;">₪${stats.priceStats.max.toLocaleString()}</div>
+                                <div style="font-size:12px; color:#6c757d;">מקסימום</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="font-size:18px; font-weight:bold; color:#007bff;">₪${stats.priceStats.total.toLocaleString()}</div>
+                                <div style="font-size:12px; color:#6c757d;">סה"כ ערך</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="background:#f8f9fa; padding:20px; border-radius:12px;">
+                        <h5 style="color:#007bff; margin-bottom:15px;">🎯 סוגי קמפיינים</h5>
+                        <div style="display:flex; gap:15px; flex-wrap:wrap;">
+                            ${stats.campaigns.map(campaign => 
+                                `<span style="background:#007bff; color:white; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500;">${campaign}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+    
+    // אופטימיזציה של תקציב
+    optimizeBudget() {
+        const budget = Number(document.getElementById('ganttBudget')?.value || 0);
+        if (!budget || budget <= 0) {
+            this.showMessage('אנא הגדר תקציב תקף לאופטימיזציה', 'warning');
+            return;
+        }
+        
+        if (ganttSelectedMalls.size === 0) {
+            this.showMessage('אנא בחר מתחמים לאופטימיזציה', 'warning');
+            return;
+        }
+        
+        const optimized = this.calculateOptimization(budget);
+        this.showOptimizationResults(optimized);
+    }
+    
+    calculateOptimization(budget) {
+        const type = document.getElementById('ganttType')?.value || 'all';
+        const selectedMalls = Array.from(ganttSelectedMalls);
+        
+        // חישוב 3 אסטרטגיות
+        const strategies = {
+            maxMalls: this.optimizeForMaxMalls(selectedMalls, budget, type),
+            maxValue: this.optimizeForMaxValue(selectedMalls, budget, type),
+            maxVisitors: this.optimizeForMaxVisitors(selectedMalls, budget, type)
+        };
+        
+        return strategies;
+    }
+    
+    optimizeForMaxMalls(selectedMalls, budget, type) {
+        return this.getOptimizedResults(selectedMalls, budget, type, 'cost');
+    }
+    
+    optimizeForMaxValue(selectedMalls, budget, type) {
+        return this.getOptimizedResults(selectedMalls, budget, type, 'efficiency');
+    }
+    
+    optimizeForMaxVisitors(selectedMalls, budget, type) {
+        return this.getOptimizedResults(selectedMalls, budget, type, 'visitors');
+    }
+    
+    getOptimizedResults(selectedMalls, budget, type, sortBy) {
+        let mallStats = {};
+        
+        this.originalData.forEach(item => {
+            const mall = item['מתחם'];
+            if (!mall || !selectedMalls.includes(mall.trim())) return;
+            
+            const campaign = String(item['קמפיין'] || '').trim();
+            if (type !== 'all') {
+                if (type === 'פרינט' && campaign !== 'פרינט') return;
+                if (type === 'דיגיטלי' && campaign !== 'דיגטלי') return;
+            }
+            
+            const mallKey = mall.trim();
+            if (!mallStats[mallKey]) {
+                mallStats[mallKey] = { cost: 0, count: 0, visitors: 0 };
+            }
+            
+            mallStats[mallKey].cost += Number(item['מחיר מכירה']) || 0;
+            mallStats[mallKey].count += 1;
+            mallStats[mallKey].visitors += Number(item['מבקרים']) || 0;
+        });
+        
+        let mallsArray = Object.keys(mallStats).map(mall => ({
+            name: mall,
+            cost: mallStats[mall].cost,
+            count: mallStats[mall].count,
+            visitors: mallStats[mall].visitors,
+            efficiency: mallStats[mall].cost > 0 ? mallStats[mall].count / mallStats[mall].cost : 0
+        }));
+        
+        // מיון לפי אסטרטגיה
+        switch(sortBy) {
+            case 'cost':
+                mallsArray.sort((a, b) => a.cost - b.cost);
+                break;
+            case 'efficiency':
+                mallsArray.sort((a, b) => b.efficiency - a.efficiency);
+                break;
+            case 'visitors':
+                mallsArray.sort((a, b) => b.visitors - a.visitors);
+                break;
+        }
+        
+        // בחירת מתחמים בתקציב
+        const selected = [];
+        let currentTotal = 0;
+        
+        for (const mall of mallsArray) {
+            if (currentTotal + mall.cost <= budget) {
+                currentTotal += mall.cost;
+                selected.push(mall);
+            }
+        }
+        
+        return {
+            malls: selected,
+            totalCost: currentTotal,
+            totalProducts: selected.reduce((sum, mall) => sum + mall.count, 0),
+            totalVisitors: selected.reduce((sum, mall) => sum + mall.visitors, 0),
+            remaining: budget - currentTotal
+        };
+    }
+    
+    showOptimizationResults(strategies) {
+        const modalHtml = `
+            <div id="optimizationModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:10000; display:flex; align-items:center; justify-content:center;">
+                <div style="background:white; padding:30px; border-radius:16px; max-width:800px; width:95%; max-height:90%; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+                        <h3 style="margin:0; color:#007bff; font-size:20px;">🎯 אופטימיזציית תקציב</h3>
+                        <button onclick="document.getElementById('optimizationModal').remove()" style="background:none; border:none; font-size:28px; cursor:pointer; color:#6c757d;">×</button>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px;">
+                        ${this.generateStrategyCard('מקסימום מתחמים', strategies.maxMalls, '#007bff', 'maxMalls')}
+                        ${this.generateStrategyCard('מקסימום יעילות', strategies.maxValue, '#28a745', 'maxValue')}
+                        ${this.generateStrategyCard('מקסימום מבקרים', strategies.maxVisitors, '#dc3545', 'maxVisitors')}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+    
+    generateStrategyCard(title, strategy, color, id) {
+        return `
+            <div style="border:2px solid ${color}; border-radius:12px; overflow:hidden; background:white;">
+                <div style="background:${color}; color:white; padding:15px; text-align:center;">
+                    <h5 style="margin:0; font-size:16px;">${title}</h5>
+                </div>
+                <div style="padding:20px;">
+                    <div style="display:grid; gap:12px; margin-bottom:20px;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>מתחמים:</span>
+                            <strong>${strategy.malls.length}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>פלטפורמות:</span>
+                            <strong>${strategy.totalProducts}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>עלות:</span>
+                            <strong style="color:${color};">₪${strategy.totalCost.toLocaleString()}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>יתרה:</span>
+                            <strong style="color:#28a745;">₪${strategy.remaining.toLocaleString()}</strong>
+                        </div>
+                    </div>
+                    <button onclick="ganttEnhanced.applyOptimization('${id}', ${JSON.stringify(strategy).replace(/"/g, '&quot;')})" style="width:100%; background:${color}; color:white; border:none; padding:10px; border-radius:6px; cursor:pointer; font-weight:600;">
+                        ✅ החל אסטרטגיה
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    applyOptimization(strategyId, strategyData) {
+        // ניקוי בחירה נוכחית
+        ganttSelectedMalls.clear();
+        
+        // הוספת מתחמים מהאסטרטגיה
+        strategyData.malls.forEach(mall => {
+            ganttSelectedMalls.add(mall.name);
+        });
+        
+        // עדכון תצוגה
+        updateMallsDisplay();
+        updateMallsDropdown();
+        
+        // סגירת המודל
+        document.getElementById('optimizationModal')?.remove();
+        
+        // הצגת הודעה
+        this.showMessage(`✅ אסטרטגיה יושמה בהצלחה! נבחרו ${strategyData.malls.length} מתחמים`, 'success');
+        
+        // חישוב אוטומטי
+        setTimeout(() => {
+            this.enhancedCalculate();
+        }, 1000);
+    }
+    
+    // פונקציית עזר להצגת הודעות
+    showMessage(message, type = 'info') {
+        const colors = {
+            success: '#28a745',
+            error: '#dc3545',
+            warning: '#ffc107',
+            info: '#007bff'
+        };
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${colors[type]};
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10001;
+            font-weight: 600;
+            font-size: 14px;
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        `;
+        
+        messageDiv.innerHTML = message;
+        document.body.appendChild(messageDiv);
+        
+        setTimeout(() => {
+            messageDiv.style.animation = 'slideOut 0.3s ease forwards';
+            setTimeout(() => messageDiv.remove(), 300);
+        }, 3000);
+    }
+    
+    // יצוא ל-Excel משופר
+    exportToExcel() {
+        if (!currentGanttData) {
+            this.showMessage('אין נתונים לייצוא', 'error');
+            return;
+        }
+        
+        const { finalMalls, mallProducts, type } = currentGanttData;
+        const exportData = [];
+        
+        // כותרת ראשית
+        exportData.push(['תוכנית גנט משופרת', '', '', '', '', '', '', '']);
+        exportData.push([`תאריך: ${new Date().toLocaleDateString('he-IL')}`, '', '', '', '', '', '', '']);
+        exportData.push([`סוג קמפיין: ${type === 'all' ? 'משולב' : type}`, '', '', '', '', '', '', '']);
+        exportData.push(['']); // שורה ריקה
+        
+        // כותרות עמודות
+        exportData.push(['מתחם', 'פלטפורמה', 'מחיר', 'מבקרים', 'גובה', 'רוחב', 'גובה2', 'רוחב2', 'קמפיין']);
+        
+        // נתונים
+        finalMalls.forEach(mall => {
+            const products = mallProducts[mall] || [];
+            products.forEach(product => {
+                exportData.push([
+                    mall,
+                    product['פלטפורמה'] || '',
+                    product['מחיר מכירה'] || 0,
+                    product['מבקרים'] || '',
+                    product['גובה'] || '',
+                    product['רוחב'] || '',
+                    product['גובה2'] || '',
+                    product['רוחב2'] || '',
+                    product['קמפיין'] || ''
+                ]);
+            });
+        });
+        
+        // המרה ל-CSV עם BOM לתמיכה בעברית
+        const csvContent = '\ufeff' + exportData.map(row => 
+            row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+        ).join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `gantt_enhanced_${type}_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        
+        this.showMessage('📊 קובץ Excel יוצא בהצלחה!', 'success');
+    }
+}
+
+// יצירת instance גלובלי
+const ganttEnhanced = new EnhancedGanttManager();
+
+// הוספת CSS לאנימציות
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+`;
+document.head.appendChild(styleSheet);
+
+// ייצוא לגלובל
+if (typeof window !== 'undefined') {
+    window.ganttEnhanced = ganttEnhanced;
+}
+
+console.log('🚀 שדרוגי גנט הותקנו בהצלחה!');
+console.log('📋 פונקציות זמינות:');
+console.log('   • ganttShowStats() - הצגת סטטיסטיקות');
+console.log('   • ganttOptimizeBudget() - אופטימיזציית תקציב');
+console.log('   • ganttSaveAdvanced() - שמירה מתקדמת');
+console.log('   • ganttExportAdvanced() - יצוא משופר');
